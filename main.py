@@ -40,30 +40,44 @@ def draw_intersection(mode):
 	draw_traffic_lights(350, 400, mode - 3)  # Bottom
 
 def draw_cars(carsOnBoard):
-	for car in carsOnBoard:
-		if car.loc == 1:
-			font = pygame.font.SysFont(None, 24)
-			text = font.render(f'Cars: {len([c for c in carsOnBoard if c.loc == 1])}', False, WHITE)
-			window.blit(text, (175, 275))
-		elif car.loc == 2:
-			font = pygame.font.SysFont(None, 24)
-			text = font.render(f'Cars: {len([c for c in carsOnBoard if c.loc == 2])}', False, WHITE)
-			window.blit(text, (425, 150))
-		elif car.loc == 3:
-			font = pygame.font.SysFont(None, 24)
-			text = font.render(f'Cars: {len([c for c in carsOnBoard if c.loc == 3])}', False, WHITE)
-			window.blit(text, (550, 375))
-		elif car.loc == 4:
-			font = pygame.font.SysFont(None, 24)
-			text = font.render(f'Cars: {len([c for c in carsOnBoard if c.loc == 4])}', False, WHITE)
-			window.blit(text, (325, 475))
+	carsW = 0
+	carsN = 0
+	carsE = 0
+	carsS = 0
 
+	for car in carsOnBoard:
+		if car.loc == [1]:
+			carsW = carsW + 1
+		elif car.loc == [2]:
+			carsN = carsN + 1
+		elif car.loc == [3]:
+			carsE = carsE + 1
+		elif car.loc == [4]:
+			carsS = carsS + 1
+
+	font = pygame.font.SysFont(None, 24)
+	text = font.render(f'Cars: {carsW}', False, WHITE)
+	window.blit(text, (175, 275))
+
+	font = pygame.font.SysFont(None, 24)
+	text = font.render(f'Cars: {carsN}', False, WHITE)
+	window.blit(text, (425, 150))
+
+	font = pygame.font.SysFont(None, 24)
+	text = font.render(f'Cars: {carsE}', False, WHITE)
+	window.blit(text, (550, 375))
+
+	font = pygame.font.SysFont(None, 24)
+	text = font.render(f'Cars: {carsS}', False, WHITE)
+	window.blit(text, (325, 475))
 
 gameLength = 24 * 30
 gameLengthMultiplier = 0.7 # speeds up or slows down the game
 carsOnBoard = []
 carMultiplier = 1 # multiplies number of cars on board
 hour = 0
+roadNumbers = [1,2,3,4]
+probability = [0.3,0.2,0.3,0.2]
 
 # reads csv of dataset and creates a list of the elements on each line
 try:
@@ -85,7 +99,7 @@ for line in file:
 		print("minute number: " + str(min))
 
 		for i in range(int(line[2]) * carMultiplier):
-			carsOnBoard.append(Car(random.randint(1, 4), random.randint(1, 4), 0))
+			carsOnBoard.append(Car(random.choices(roadNumbers, probability), random.choices(roadNumbers, probability), 0))
 
 		print(len(carsOnBoard))
 
@@ -100,6 +114,11 @@ for line in file:
 		for event in pygame.event.get():
 			# handles quit event
 			if event.type == pygame.QUIT:
+				# dump all the car objects to a text file
+				with open("dump.txt", "w") as dump_file:
+					for car in carsOnBoard:
+						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+
 				pygame.quit()
 				quit()
 

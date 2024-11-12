@@ -7,6 +7,3 @@ class Car:
         self.dest = dest
         self.timeWaiting = timeWaiting
         self.colour = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
-
-    def colour(self):
-        return self.colour
