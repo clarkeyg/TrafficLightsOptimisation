@@ -15,6 +15,7 @@ class Traffic:
         self.left = []
         self.right = []
         self.liveCars = []
+        self.deadCars = []
 
     def addCar(self, car):
         self.liveCars.append(car)

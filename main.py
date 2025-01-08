@@ -72,49 +72,58 @@ for line in file:
 				print("left light")
 				for i in range(random.randint(15, 20)):
 					try:
-						traffic.left.pop()
+						traffic.deadCars.append(traffic.left.pop())
 					except:
 						print("no cars to leave")
 			case 1:
 				print("right light")
 				for i in range(random.randint(7, 10)):
 					try:
-						traffic.right.pop()
+						traffic.deadCars.append(traffic.right.pop())
 					except:
 						print("no cars to leave")
 			case 2:
 				print("top light")
 				for i in range(random.randint(7, 10)):
 					try:
-						traffic.top.pop()
+						traffic.deadCars.append(traffic.top.pop())
 					except:
 						print("no cars to leave")
 			case 3:
 				print("bottom light")
 				for i in range(random.randint(7, 10)):
 					try:
-						traffic.bottom.pop()
+						traffic.deadCars.append(traffic.bottom.pop())
 					except:
 						print("no cars to leave")
 
+		# increment timeWaiting for all cars in traffic
+		for car in traffic.liveCars:
+			car.timeWaiting += 1
+		# for car in traffic.top:
+		# 	car.timeWaiting += 1
+		# for car in traffic.bottom:
+		# 	car.timeWaiting += 1
+		# for car in traffic.left:
+		# 	car.timeWaiting += 1
+		# for car in traffic.right:
+		# 	car.timeWaiting += 1
 
 		# draw the window
 		drawWindow(window, mode, traffic)
-		for car in traffic.liveCars:
-			car.timeWaiting += 1
 
 		for event in pygame.event.get():
 			# handles quit event
 			if event.type == pygame.QUIT:
 				# dump all the car objects to a text file
 				with open("dump.txt", "w") as dump_file:
-					for car in traffic.top:
+
+					dump_file.write("Live Cars:\n")
+					for car in traffic.liveCars:
 						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-					for car in traffic.bottom:
-						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-					for car in traffic.left:
-						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-					for car in traffic.right:
+
+					dump_file.write("Dead Cars:\n")
+					for car in traffic.deadCars:
 						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
 
 				running = False
