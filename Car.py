@@ -7,3 +7,24 @@ class Car:
         self.dest = dest
         self.timeWaiting = timeWaiting
         self.colour = [random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)]
+
+class Traffic:
+    def __init__(self):
+        self.top = []
+        self.bottom = []
+        self.left = []
+        self.right = []
+        self.liveCars = []
+
+    def addCar(self, car):
+        self.liveCars.append(car)
+        if car.loc == [1]:
+            self.left.append(car)
+        elif car.loc == [2]:
+            self.top.append(car)
+        elif car.loc == [3]:
+            self.right.append(car)
+        elif car.loc == [4]:
+            self.bottom.append(car)
+        else:
+            print("Invalid location")

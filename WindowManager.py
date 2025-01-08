@@ -8,9 +8,9 @@ GREEN = (0, 255, 0)
 DARK_GREEN = (0, 100, 0)
 RED = (255, 0, 0)
 
-def drawWindow(window, mode, carsOnBoard):
+def drawWindow(window, mode, traffic):
     draw_intersection(window, mode)
-    draw_cars(window, carsOnBoard)
+    draw_cars(window, traffic)
     pygame.display.update()
 
 def draw_traffic_lights(window, x, y, mode):
@@ -35,34 +35,43 @@ def draw_intersection(window, mode):
     draw_traffic_lights(window, 450, 200, mode - 2)  # Top
     draw_traffic_lights(window, 350, 400, mode - 3)  # Bottom
 
-def draw_cars(window,carsOnBoard):
-    carsW = 0
-    carsN = 0
-    carsE = 0
-    carsS = 0
+def draw_cars(window, traffic):
+    carsLeft = 0
+    carsTop = 0
+    carsRight = 0
+    carsBottom = 0
 
-    for car in carsOnBoard:
-        if car.loc == [1]:
-            carsW = carsW + 1
-        elif car.loc == [2]:
-            carsN = carsN + 1
-        elif car.loc == [3]:
-            carsE = carsE + 1
-        elif car.loc == [4]:
-            carsS = carsS + 1
+    for car in traffic.left:
+        carsLeft += 1
+    for car in traffic.top:
+        carsTop += 1
+    for car in traffic.right:
+        carsRight += 1
+    for car in traffic.bottom:
+        carsBottom += 1
+
+    # for car in carsOnBoard:
+    #     if car.loc == [1]:
+    #         carsW = carsW + 1
+    #     elif car.loc == [2]:
+    #         carsN = carsN + 1
+    #     elif car.loc == [3]:
+    #         carsE = carsE + 1
+    #     elif car.loc == [4]:
+    #         carsS = carsS + 1
 
     font = pygame.font.SysFont(None, 24)
-    text = font.render(f'Cars: {carsW}', False, WHITE)
+    text = font.render(f'Cars: {carsLeft}', False, WHITE)
     window.blit(text, (175, 275))
 
     font = pygame.font.SysFont(None, 24)
-    text = font.render(f'Cars: {carsN}', False, WHITE)
+    text = font.render(f'Cars: {carsTop}', False, WHITE)
     window.blit(text, (425, 150))
 
     font = pygame.font.SysFont(None, 24)
-    text = font.render(f'Cars: {carsE}', False, WHITE)
+    text = font.render(f'Cars: {carsRight}', False, WHITE)
     window.blit(text, (550, 375))
 
     font = pygame.font.SysFont(None, 24)
-    text = font.render(f'Cars: {carsS}', False, WHITE)
+    text = font.render(f'Cars: {carsBottom}', False, WHITE)
     window.blit(text, (325, 475))
