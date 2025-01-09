@@ -2,7 +2,6 @@
 using Python 3.12
 """
 
-
 import time
 import csv
 import random
@@ -27,14 +26,14 @@ except:
 
 
 gameLength = 24 * 30
-gameLengthMultiplier = 1 # speeds up or slows down the game
+gameLengthMultiplier = 1.5 # speeds up or slows down the game
 traffic = Traffic()
 carMultiplier = 1 # multiplies number of cars on board
 hour = 0
 cyclesPerHour = 30
 
 # respective probabilities of cars coming from each road (simulates some roads being busier than others)
-roadNumbers = [	1,	2,	3,	4]
+roadNumbers = [	0,	1,	2,	3]
 probability = [0.3,0.2,0.3,0.2]
 
 running = True
@@ -60,7 +59,7 @@ for line in file:
 
 		# this is the algorithm that decides which light to turn green
 		# it does this by setting the traffic light "mode"
-		mode = betterControl(cycle)
+		mode = chaosControl(traffic)
 
 		# pop cars from each light during cycle
 		# mode = 0 = left light
@@ -100,14 +99,6 @@ for line in file:
 		# increment timeWaiting for all cars in traffic
 		for car in traffic.liveCars:
 			car.timeWaiting += 1
-		# for car in traffic.top:
-		# 	car.timeWaiting += 1
-		# for car in traffic.bottom:
-		# 	car.timeWaiting += 1
-		# for car in traffic.left:
-		# 	car.timeWaiting += 1
-		# for car in traffic.right:
-		# 	car.timeWaiting += 1
 
 		# draw the window
 		drawWindow(window, mode, traffic)

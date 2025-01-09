@@ -19,13 +19,13 @@ class Traffic:
 
     def addCar(self, car):
         self.liveCars.append(car)
-        if car.loc == [1]:
+        if car.loc == [0]:
             self.left.append(car)
-        elif car.loc == [2]:
+        elif car.loc == [1]:
             self.top.append(car)
-        elif car.loc == [3]:
+        elif car.loc == [2]:
             self.right.append(car)
-        elif car.loc == [4]:
+        elif car.loc == [3]:
             self.bottom.append(car)
         else:
             print("Invalid location")
