@@ -6,7 +6,7 @@ import time
 import csv
 import random
 
-from Car import Car, Traffic
+from Traffic import Car, Traffic
 from WindowManager import *
 from TrafficControlAlgorithms import *
 
@@ -31,6 +31,8 @@ traffic = Traffic()
 carMultiplier = 1 # multiplies number of cars on board
 hour = 0
 cyclesPerHour = 30
+lowerLimitCars = 15
+upperLimitCars = 20
 
 # respective probabilities of cars coming from each road (simulates some roads being busier than others)
 roadNumbers = [	0,	1,	2,	3]
@@ -41,8 +43,8 @@ running = True
 # this is the main game loop, it iterates though the lines of the csv
 for line in file:
 	numCarsThisCycle = line[2]
-	print(numCarsThisCycle)
-	print("hour number: " + str(hour))
+	print(f"cars per hour{numCarsThisCycle}")
+	print(f"hour number: {str(hour)}")
 
 	for cycle in range(cyclesPerHour):
 		print("minute number: " + str(cycle))
@@ -66,35 +68,38 @@ for line in file:
 		# mode = 1 = right light
 		# mode = 2 = top light
 		# mode = 3 = bottom light
+		missedCars = 0
 		match mode:
 			case 0:
 				print("left light")
-				for i in range(random.randint(15, 20)):
+				for i in range(random.randint(lowerLimitCars, upperLimitCars)):
 					try:
 						traffic.deadCars.append(traffic.left.pop())
 					except:
-						print("no cars to leave")
+						missedCars += 1
 			case 1:
 				print("right light")
-				for i in range(random.randint(7, 10)):
+				for i in range(random.randint(lowerLimitCars, upperLimitCars)):
 					try:
 						traffic.deadCars.append(traffic.right.pop())
 					except:
-						print("no cars to leave")
+						missedCars += 1
 			case 2:
 				print("top light")
-				for i in range(random.randint(7, 10)):
+				for i in range(random.randint(lowerLimitCars, upperLimitCars)):
 					try:
 						traffic.deadCars.append(traffic.top.pop())
 					except:
-						print("no cars to leave")
+						missedCars += 1
 			case 3:
 				print("bottom light")
-				for i in range(random.randint(7, 10)):
+				for i in range(random.randint(lowerLimitCars, upperLimitCars)):
 					try:
 						traffic.deadCars.append(traffic.bottom.pop())
 					except:
-						print("no cars to leave")
+						missedCars += 1
+
+		print(f"missed cars: {missedCars}")
 
 		# increment timeWaiting for all cars in traffic
 		for car in traffic.liveCars:
@@ -121,9 +126,9 @@ for line in file:
 				pygame.quit()
 				quit()
 
+		print()
 		time.sleep(1 * gameLengthMultiplier)
 
-	print()
 	hour += 1
 
 
