@@ -10,6 +10,43 @@ from Traffic import Car, Traffic
 from WindowManager import *
 from TrafficControlAlgorithms import *
 
+def quitAndLog():
+	waitingSum = 0
+	liveCount = 0
+	# dump all the car objects to a text file
+	with open("dump.txt", "w") as dump_file:
+
+		dump_file.write("Live Cars:\n")
+		for car in traffic.top:
+			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+			waitingSum += car.timeWaiting
+			liveCount += 1
+		for car in traffic.bottom:
+			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+			waitingSum += car.timeWaiting
+			liveCount += 1
+		for car in traffic.left:
+			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+			waitingSum += car.timeWaiting
+			liveCount += 1
+		for car in traffic.right:
+			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+			waitingSum += car.timeWaiting
+			liveCount += 1
+
+		dump_file.write("\nDead Cars:\n")
+		for car in traffic.deadCars:
+			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+			waitingSum += car.timeWaiting
+
+		dump_file.write(f"Avg waiting time: {waitingSum / (len(traffic.deadCars) + liveCount)}\n")
+		dump_file.write(f"Total potential cars wasted: {totalMissedCars}\n")
+		dump_file.write(f"Avg potential cars wasted: {totalMissedCars / ((hour * cyclesPerHour) + cycle)}\n")
+
+	running = False
+	pygame.quit()
+	quit()
+
 # initialise pygame and set window dimensions
 pygame.init()
 window_width, window_height = 800, 600
@@ -25,8 +62,8 @@ except:
 	quit()
 
 
-gameLength = 24 * 30
-gameLengthMultiplier = 0.5 # speeds up or slows down the game
+gameLength = 24 # in hours
+gameLengthMultiplier = 0.01 # speeds up or slows down the game
 traffic = Traffic()
 carMultiplier = 1 # multiplies number of cars on board
 hour = 0
@@ -59,7 +96,7 @@ for line in file:
 
 		# this is the algorithm that decides which light to turn green
 		# it does this by setting the traffic light "mode"
-		mode =  betterControl(cycle)
+		mode =  simpleControl(cycle)
 
 		# pop cars from each light during cycle
 		# mode = 0 = left light
@@ -117,29 +154,13 @@ for line in file:
 		# draw the window
 		drawWindow(window, mode, traffic)
 
+		if (hour == gameLength and cycle == 29):
+			quitAndLog()
+
 		for event in pygame.event.get():
 			# handles quit event
 			if event.type == pygame.QUIT:
-				waitingSum = 0
-				# dump all the car objects to a text file
-				with open("dump.txt", "w") as dump_file:
-
-					dump_file.write("Live Cars:\n")
-					for car in traffic.liveCars:
-						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-
-					dump_file.write("\nDead Cars:\n")
-					for car in traffic.deadCars:
-						dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-						waitingSum += car.timeWaiting
-
-					dump_file.write(f"Avg waiting time: {waitingSum/(len(traffic.deadCars))}\n")
-					dump_file.write(f"Total potential cars wasted: {totalMissedCars}\n")
-					dump_file.write(f"Avg potential cars wasted: {totalMissedCars/((hour * cyclesPerHour)+cycle)}\n")
-
-				running = False
-				pygame.quit()
-				quit()
+				quitAndLog()
 
 		print()
 		time.sleep(1 * gameLengthMultiplier)
