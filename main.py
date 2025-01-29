@@ -9,6 +9,7 @@ import random
 from Traffic import Car, Traffic
 from WindowManager import *
 from TrafficControlAlgorithms import *
+from MLAlgorithms import *
 
 def quitAndLog():
 	waitingSum = 0

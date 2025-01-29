@@ -1,5 +1,4 @@
 import random
-import time
 
 class Car:
     def __init__(self, loc, dest, timeWaiting):

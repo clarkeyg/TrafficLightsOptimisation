@@ -36,7 +36,5 @@ def chaosControl(traffic): #returns the lane that has most cars
             maxTraffic = currentTraffic
             busiestLane = i
 
-    print(busiestLane)
-
     return busiestLane
 
