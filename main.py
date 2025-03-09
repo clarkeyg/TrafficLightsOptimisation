@@ -5,11 +5,12 @@ using Python 3.12
 import time
 import csv
 import random
+import torch
 
 from Traffic import Car, Traffic
 from WindowManager import *
 from TrafficControlAlgorithms import *
-from MLAlgorithms import *
+from MLAlgorithms import NeuralTrafficControl, neural_control
 
 def quitAndLog():
 	waitingSum = 0
@@ -40,7 +41,7 @@ def quitAndLog():
 			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
 			waitingSum += car.timeWaiting
 
-		dump_file.write(f"Avg waiting time: {waitingSum / (len(traffic.deadCars) + liveCount)}\n")
+		dump_file.write(f"Avg waiting time: {waitingSum / (len(traffic.deadCars) + liveCount)} cycles\n")
 		dump_file.write(f"Total potential cars wasted: {totalMissedCars}\n")
 		dump_file.write(f"Avg potential cars wasted: {totalMissedCars / ((hour * cyclesPerHour) + cycle)}\n")
 
@@ -63,11 +64,11 @@ except:
 	quit()
 
 
-gameLength = 48 # ending hour
+gameLength = 98 # ending hour
 gameLengthMultiplier = 0 # speeds up or slows down the game
 traffic = Traffic()
-carMultiplier = 1 # multiplies number of cars on board (default value 1)
-hour = 24 #starting hour
+carMultiplier = 3 # multiplies number of cars on board (default value 1)
+hour = 0 #starting hour
 cyclesPerHour = 30
 lowerLimitCars = 15
 upperLimitCars = 20
@@ -80,6 +81,8 @@ totalMissedCars = 0
 # respective probabilities of cars coming from each road (simulates some roads being busier than others)
 roadNumbers = [	0,	1,	2,	3]
 probability = [0.2,0.4,0.3,0.1]
+
+traffic_controller = NeuralTrafficControl()
 
 #start live logging
 with open("liveLog.txt", "w") as log:
@@ -96,8 +99,8 @@ with open("liveLog.txt", "w") as log:
 
 	# this is the main game loop, it iterates though the lines of the csv
 	for line in file:
-		numCarsThisCycle = line[2]
-		print(f"cars per hour{numCarsThisCycle}")
+		numCarsThisHour = int(line[2])*carMultiplier
+		print(f"cars per hour{numCarsThisHour}")
 
 		for cycle in range(cyclesPerHour):
 			print(f"hour number: {hour}")
@@ -105,12 +108,21 @@ with open("liveLog.txt", "w") as log:
 			log.write(f"hour number: {hour}\n"
 			          f"minute number: {cycle}\n")
 
-			for i in range(int(numCarsThisCycle) * carMultiplier):
+			numCarsThisCycle = round(numCarsThisHour / cyclesPerHour)
+
+			for i in range(numCarsThisCycle):
 				traffic.addCar(Car(random.choices(roadNumbers, probability), random.choices(roadNumbers, probability), 0))
+
+			# Get the current state before making a decision
+			state = traffic_controller.get_state(traffic)
 
 			# this is the algorithm that decides which light to turn green
 			# it does this by setting the traffic light "mode"
-			mode =  chaosControl(traffic)
+
+			mode = neural_control(traffic, traffic_controller)
+			#mode = chaosControl(traffic)
+			#mode = simpleControl(cycle)
+			#mode = betterControl(cycle)
 
 			# pop cars from each light during cycle
 			# mode = 0 = left light
@@ -185,7 +197,12 @@ with open("liveLog.txt", "w") as log:
 
 			log.write("\n")
 
-			if (hour == gameLength and cycle == 29):
+			next_state = traffic_controller.get_state(traffic)
+			reward = traffic_controller.calculate_reward(traffic, carsMoved, missedCars)
+			traffic_controller.remember(state, mode, reward, next_state)
+			traffic_controller.train()
+
+			if (hour == gameLength and cycle == cyclesPerHour-1):
 				quitAndLog()
 
 			for event in pygame.event.get():
