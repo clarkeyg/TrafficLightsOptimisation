@@ -10,7 +10,8 @@ import torch
 from Traffic import Car, Traffic
 from WindowManager import *
 from TrafficControlAlgorithms import *
-from MLAlgorithms import NeuralTrafficControl, neural_control
+from MLAlgorithms import *
+
 
 def quitAndLog():
 	waitingSum = 0
@@ -64,7 +65,7 @@ except:
 	quit()
 
 
-gameLength = 98 # ending hour
+gameLength = 48 # ending hour
 gameLengthMultiplier = 0 # speeds up or slows down the game
 traffic = Traffic()
 carMultiplier = 3 # multiplies number of cars on board (default value 1)
@@ -83,6 +84,7 @@ roadNumbers = [	0,	1,	2,	3]
 probability = [0.2,0.4,0.3,0.1]
 
 traffic_controller = NeuralTrafficControl()
+traffic_controller_ac = ActorCriticTrafficControl()
 
 #start live logging
 with open("liveLog.txt", "w") as log:
@@ -113,22 +115,14 @@ with open("liveLog.txt", "w") as log:
 			for i in range(numCarsThisCycle):
 				traffic.addCar(Car(random.choices(roadNumbers, probability), random.choices(roadNumbers, probability), 0))
 
-			# Get the current state before making a decision
 			state = traffic_controller.get_state(traffic)
 
-			# this is the algorithm that decides which light to turn green
-			# it does this by setting the traffic light "mode"
-
+			#mode = actor_critic_control(traffic, traffic_controller_ac)
 			mode = neural_control(traffic, traffic_controller)
 			#mode = chaosControl(traffic)
 			#mode = simpleControl(cycle)
 			#mode = betterControl(cycle)
 
-			# pop cars from each light during cycle
-			# mode = 0 = left light
-			# mode = 1 = right light
-			# mode = 2 = top light
-			# mode = 3 = bottom light
 			missedCars = 0
 			carsMoved = 0
 
@@ -193,12 +187,13 @@ with open("liveLog.txt", "w") as log:
 				car.timeWaiting += 1
 
 			# draw the window
-			drawWindow(window, mode, traffic)
+			draw_window(window, mode, traffic)
 
 			log.write("\n")
 
 			next_state = traffic_controller.get_state(traffic)
 			reward = traffic_controller.calculate_reward(traffic, carsMoved, missedCars)
+			traffic_controller_ac.train(state, mode, reward, next_state)
 			traffic_controller.remember(state, mode, reward, next_state)
 			traffic_controller.train()
 

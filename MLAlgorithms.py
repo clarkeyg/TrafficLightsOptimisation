@@ -10,39 +10,42 @@ class TrafficNN(nn.Module):
 	def __init__(self):
 		super(TrafficNN, self).__init__()
 		self.layers = nn.Sequential(
-			nn.Linear(4, 16),  # Increased network capacity
+			nn.Linear(8, 32),  # Input size changed to 8, increased to 32 neurons
 			nn.ReLU(),
-			nn.Linear(16, 16),
+			nn.Linear(32, 16),
 			nn.ReLU(),
-			nn.Linear(16, 8),
-			nn.ReLU(),
-			nn.Linear(8, 4)
+			nn.Linear(16, 4)  # Output remains 4 (one per action)
 		)
 
 	def forward(self, x):
 		return self.layers(x)
 
-
 class NeuralTrafficControl:
 	def __init__(self):
 		self.model = TrafficNN()
+		self.target_model = TrafficNN()  # Create target network
+		self.target_model.load_state_dict(self.model.state_dict())  # Copy weights
+		self.target_model.eval()  # Set to evaluation mode
 		self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 		self.criterion = nn.MSELoss()
 		self.memory = deque(maxlen=10000)
-		self.batch_size = 64  # Increased batch size for better learning
-		self.gamma = 0.99  # Increased discount factor for longer-term planning
+		self.batch_size = 64
+		self.gamma = 0.99
 		self.epsilon = 1.0
-		self.epsilon_decay = 0.997  # Slower decay for better exploration
+		self.epsilon_decay = 0.997
 		self.epsilon_min = 0.01
-		self.prev_avg_waiting = 0  # Track previous average waiting time
+		self.prev_avg_waiting = 0
+		self.update_counter = 0  # Counter for target network updates
 
 	def get_state(self, traffic):
-		state = [
-			len(traffic.left),
-			len(traffic.right),
-			len(traffic.top),
-			len(traffic.bottom)
-		]
+		state = []
+		for lane in [traffic.left, traffic.right, traffic.top, traffic.bottom]:
+			if len(lane) > 0:
+				avg_wait = sum(car.timeWaiting for car in lane) / len(lane)
+			else:
+				avg_wait = 0
+			state.append(len(lane))
+			state.append(avg_wait)
 		return torch.FloatTensor(state)
 
 	def choose_action(self, state):
@@ -114,15 +117,13 @@ class NeuralTrafficControl:
 		actions = torch.LongTensor(actions)
 		rewards = torch.FloatTensor(rewards)
 
-		# Current Q values
 		current_q = self.model(states).gather(1, actions.unsqueeze(1))
 
-		# Next Q values
 		with torch.no_grad():
-			next_q = self.model(next_states).max(1)[0]
+			next_q = self.target_model(next_states).max(1)[0]
 		target_q = rewards + self.gamma * next_q
 
-		# Update model
+		# Update main model
 		loss = self.criterion(current_q.squeeze(), target_q)
 		self.optimizer.zero_grad()
 		loss.backward()
@@ -132,11 +133,98 @@ class NeuralTrafficControl:
 		if self.epsilon > self.epsilon_min:
 			self.epsilon *= self.epsilon_decay
 
+		# Update target network every 100 cycles
+		self.update_counter += 1
+		if self.update_counter % 100 == 0:
+			self.target_model.load_state_dict(self.model.state_dict())
+
+class Actor(nn.Module):
+	def __init__(self):
+		super(Actor, self).__init__()
+		self.layers = nn.Sequential(
+			nn.Linear(8, 32),  # Same 8-input state as improved DQN
+			nn.ReLU(),
+			nn.Linear(32, 16),
+			nn.ReLU(),
+			nn.Linear(16, 4),  # 4 actions
+			nn.Softmax(dim=-1)  # Probabilities over actions
+		)
+
+	def forward(self, x):
+		return self.layers(x)
+
+class Critic(nn.Module):
+	def __init__(self):
+		super(Critic, self).__init__()
+		self.layers = nn.Sequential(
+			nn.Linear(8, 32),
+			nn.ReLU(),
+			nn.Linear(32, 16),
+			nn.ReLU(),
+			nn.Linear(16, 1)  # Single value estimate
+		)
+
+	def forward(self, x):
+		return self.layers(x)
+
+class ActorCriticTrafficControl:
+	def __init__(self):
+		self.actor = Actor()
+		self.critic = Critic()
+		self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.001)
+		self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.001)
+		self.gamma = 0.99
+
+	def get_state(self, traffic):
+		state = []
+		for lane in [traffic.left, traffic.right, traffic.top, traffic.bottom]:
+			if len(lane) > 0:
+				avg_wait = sum(car.timeWaiting for car in lane) / len(lane)
+			else:
+				avg_wait = 0
+			state.append(len(lane))
+			state.append(avg_wait)
+		return torch.FloatTensor(state)
+
+	def choose_action(self, state):
+		with torch.no_grad():
+			probs = self.actor(state)
+			dist = torch.distributions.Categorical(probs)
+			action = dist.sample()
+		return action.item()
+
+	def train(self, state, action, reward, next_state):
+		state = torch.FloatTensor(state)
+		next_state = torch.FloatTensor(next_state)
+		action = torch.LongTensor([action])
+		reward = torch.FloatTensor([reward])
+
+		# Compute TD error
+		value = self.critic(state)
+		next_value = self.critic(next_state)
+		td_error = reward + self.gamma * next_value - value
+
+		# Update critic
+		critic_loss = td_error.pow(2)
+		self.critic_optimizer.zero_grad()
+		critic_loss.backward()
+		self.critic_optimizer.step()
+
+		# Update actor
+		probs = self.actor(state)
+		dist = torch.distributions.Categorical(probs)
+		log_prob = dist.log_prob(action)
+		actor_loss = -log_prob * td_error.detach()  # Maximize advantage
+		self.actor_optimizer.zero_grad()
+		actor_loss.backward()
+		self.actor_optimizer.step()
+
+def actor_critic_control(traffic, controller):
+	state = controller.get_state(traffic)
+	action = controller.choose_action(state)
+	return action
 
 def neural_control(traffic, controller):
-	"""
-	Function to be called from main loop
-	"""
 	state = controller.get_state(traffic)
 	action = controller.choose_action(state)
 	return action
