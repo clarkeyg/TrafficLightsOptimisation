@@ -1,215 +1,175 @@
 """
 using Python 3.12
 """
-
 import time
 import csv
 import random
-import torch
-
+import pygame
 from Traffic import Car, Traffic
-from WindowManager import *
-from TrafficControlAlgorithms import *
-from MLAlgorithms import *
+from WindowManager import draw_window
+from MLAlgorithms import NeuralTrafficControl, ActorCriticTrafficControl, FixedNNControl
+from TrafficControlAlgorithms import ChaosControl, SimpleControl, BetterControl
 
+def quit_and_log(traffic, total_missed_cars, hour, cycle, cycles_per_hour):
+    waiting_sum = 0
+    live_count = 0
+    with open("postReport.txt", "w") as dump_file:
+        dump_file.write("Live Cars:\n")
+        for lane in [traffic.top, traffic.bottom, traffic.left, traffic.right]:
+            for car in lane:
+                dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+                waiting_sum += car.timeWaiting
+                live_count += 1
+        dump_file.write("\nDead Cars:\n")
+        for car in traffic.deadCars:
+            dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
+            waiting_sum += car.timeWaiting
+        avg_wait = waiting_sum / (len(traffic.deadCars) + live_count) if (len(traffic.deadCars) + live_count) > 0 else 0
+        dump_file.write(f"Avg waiting time: {avg_wait} cycles\n")
+        dump_file.write(f"Total potential cars wasted: {total_missed_cars}\n")
+        total_cycles = (hour * cycles_per_hour) + cycle + 1  # +1 since cycle is 0-based
+        dump_file.write(f"Avg potential cars wasted: {total_missed_cars / total_cycles if total_cycles > 0 else 0}\n")
+    pygame.quit()
+    quit()
 
-def quitAndLog():
-	waitingSum = 0
-	liveCount = 0
-	# dump all the car objects to a text file
-	with open("postReport.txt", "w") as dump_file:
-
-		dump_file.write("Live Cars:\n")
-		for car in traffic.top:
-			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-			waitingSum += car.timeWaiting
-			liveCount += 1
-		for car in traffic.bottom:
-			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-			waitingSum += car.timeWaiting
-			liveCount += 1
-		for car in traffic.left:
-			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-			waitingSum += car.timeWaiting
-			liveCount += 1
-		for car in traffic.right:
-			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-			waitingSum += car.timeWaiting
-			liveCount += 1
-
-		dump_file.write("\nDead Cars:\n")
-		for car in traffic.deadCars:
-			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
-			waitingSum += car.timeWaiting
-
-		dump_file.write(f"Avg waiting time: {waitingSum / (len(traffic.deadCars) + liveCount)} cycles\n")
-		dump_file.write(f"Total potential cars wasted: {totalMissedCars}\n")
-		dump_file.write(f"Avg potential cars wasted: {totalMissedCars / ((hour * cyclesPerHour) + cycle)}\n")
-
-	running = False
-	pygame.quit()
-	quit()
-
-# initialise pygame and set window dimensions
+# Initialise pygame
 pygame.init()
 window_width, window_height = 800, 600
 window = pygame.display.set_mode((window_width, window_height))
 
-# reads csv of dataset and creates a list of the elements on each line
+# Load traffic data
 try:
-	with open('kaggle/traffic.csv') as file:
-		reader = csv.reader(file)
-		file = list(reader)
+    with open('kaggle/traffic.csv') as file:
+        reader = csv.reader(file)
+        traffic_data = list(reader)
 except:
-	print("something went wrong while trying to read dataset")
-	quit()
+    print("Error reading dataset")
+    quit()
 
-
-gameLength = 48 # ending hour
-gameLengthMultiplier = 0 # speeds up or slows down the game
+# Configuration
+algorithm = "better control"
+game_length = 48
+game_length_multiplier = 0
 traffic = Traffic()
-carMultiplier = 3 # multiplies number of cars on board (default value 1)
-hour = 0 #starting hour
-cyclesPerHour = 30
-lowerLimitCars = 15
-upperLimitCars = 20
-totalMissedCars = 0
+car_multiplier = 3
+hour = 0
+cycles_per_hour = 30
+lower_limit_cars = 15
+upper_limit_cars = 20
+total_missed_cars = 0
+road_numbers = [0, 1, 2, 3]
+probability = [0.2, 0.4, 0.3, 0.1]
 
-# 0 = left light
-# 1 = right light
-# 2 = top light
-# 3 = bottom light
-# respective probabilities of cars coming from each road (simulates some roads being busier than others)
-roadNumbers = [	0,	1,	2,	3]
-probability = [0.2,0.4,0.3,0.1]
+# Select controller
+if algorithm == "neural online":
+    controller = NeuralTrafficControl()
+elif algorithm == "actor critic":
+    controller = ActorCriticTrafficControl()
+elif algorithm == "neural fixed":
+    controller = FixedNNControl()
+elif algorithm == "chaos control":
+    controller = ChaosControl()
+elif algorithm == "simple control":
+    controller = SimpleControl()
+elif algorithm == "better control":
+    controller = BetterControl()
+else:
+    print("Invalid algorithm")
+    quit()
 
-traffic_controller = NeuralTrafficControl()
-traffic_controller_ac = ActorCriticTrafficControl()
-
-#start live logging
+# Start logging
 with open("liveLog.txt", "w") as log:
-	log.write(f"Log Session started\n\n")
-	log.write(f"Settings:\n"
-	          f"gameLength {gameLength}\n"
-	          f"carMultiplier {carMultiplier}\n"
-	          f"cyclesPerHour {cyclesPerHour}\n"
-	          f"lowerLimitCars {lowerLimitCars}\n"
-	          f"upperLimitCars {upperLimitCars}\n\n")
+    log.write(f"Log Session started\n\nSettings:\n"
+              f"gameLength {game_length}\ncarMultiplier {car_multiplier}\n"
+              f"cyclesPerHour {cycles_per_hour}\nlowerLimitCars {lower_limit_cars}\n"
+              f"upperLimitCars {upper_limit_cars}\n\n")
 
+    running = True
+    for line in traffic_data:
+        num_cars_this_hour = int(line[2]) * car_multiplier
+        print(f"cars per hour: {num_cars_this_hour}")
 
-	running = True
+        for cycle in range(cycles_per_hour):
+            print(f"hour number: {hour}\ncycle number: {cycle}")
+            log.write(f"hour number: {hour}\nminute number: {cycle}\n")
 
-	# this is the main game loop, it iterates though the lines of the csv
-	for line in file:
-		numCarsThisHour = int(line[2])*carMultiplier
-		print(f"cars per hour{numCarsThisHour}")
+            num_cars_this_cycle = round(num_cars_this_hour / cycles_per_hour)
+            for _ in range(num_cars_this_cycle):
+                traffic.addCar(Car(random.choices(road_numbers, probability),
+                                 random.choices(road_numbers, probability), 0))
 
-		for cycle in range(cyclesPerHour):
-			print(f"hour number: {hour}")
-			print(f"minute number: {cycle}")
-			log.write(f"hour number: {hour}\n"
-			          f"minute number: {cycle}\n")
+            # Choose action using controller
+            mode = controller.choose_action(traffic)
 
-			numCarsThisCycle = round(numCarsThisHour / cyclesPerHour)
+            # Move cars
+            missed_cars, cars_moved = 0, 0
+            match mode:
+                case 0:
+                    print("left light")
+                    log.write("left light\n")
+                    for _ in range(random.randint(lower_limit_cars, upper_limit_cars)):
+                        try:
+                            traffic.deadCars.append(traffic.left.pop())
+                            cars_moved += 1
+                        except IndexError:
+                            missed_cars += 1
+                            total_missed_cars += 1
+                case 1:
+                    print("right light")
+                    log.write("right light\n")
+                    for _ in range(random.randint(lower_limit_cars, upper_limit_cars)):
+                        try:
+                            traffic.deadCars.append(traffic.right.pop())
+                            cars_moved += 1
+                        except IndexError:
+                            missed_cars += 1
+                            total_missed_cars += 1
+                case 2:
+                    print("top light")
+                    log.write("top light\n")
+                    for _ in range(random.randint(lower_limit_cars, upper_limit_cars)):
+                        try:
+                            traffic.deadCars.append(traffic.top.pop())
+                            cars_moved += 1
+                        except IndexError:
+                            missed_cars += 1
+                            total_missed_cars += 1
+                case 3:
+                    print("bottom light")
+                    log.write("bottom light\n")
+                    for _ in range(random.randint(lower_limit_cars, upper_limit_cars)):
+                        try:
+                            traffic.deadCars.append(traffic.bottom.pop())
+                            cars_moved += 1
+                        except IndexError:
+                            missed_cars += 1
+                            total_missed_cars += 1
 
-			for i in range(numCarsThisCycle):
-				traffic.addCar(Car(random.choices(roadNumbers, probability), random.choices(roadNumbers, probability), 0))
+            print(f"moved cars: {cars_moved}\nmissed cars: {missed_cars}")
+            log.write(f"moved cars: {cars_moved}\nmissed cars: {missed_cars}\n")
 
-			state = traffic_controller.get_state(traffic)
+            # Update waiting times
+            for car in traffic.top + traffic.bottom + traffic.left + traffic.right:
+                car.timeWaiting += 1
 
-			#mode = actor_critic_control(traffic, traffic_controller_ac)
-			mode = neural_control(traffic, traffic_controller)
-			#mode = chaosControl(traffic)
-			#mode = simpleControl(cycle)
-			#mode = betterControl(cycle)
+            # Render
+            draw_window(window, mode, traffic)
+            log.write("\n")
 
-			missedCars = 0
-			carsMoved = 0
+            # Update controller
+            controller.update(traffic, cars_moved, missed_cars)
 
-			match mode:
-				case 0:
-					print("left light")
-					log.write("left light\n")
-					for i in range(random.randint(lowerLimitCars, upperLimitCars)):
-						#trys to pop car from the lane, if it fails to do that there is no car waiting at that light so
-						#add to the counter of cars missed
-						try:
-							traffic.deadCars.append(traffic.left.pop())
-							carsMoved += 1
-						except:
-							missedCars += 1
-							totalMissedCars += 1
-				case 1:
-					print("right light")
-					log.write("right light\n")
-					for i in range(random.randint(lowerLimitCars, upperLimitCars)):
-						try:
-							traffic.deadCars.append(traffic.right.pop())
-							carsMoved += 1
-						except:
-							missedCars += 1
-							totalMissedCars += 1
-				case 2:
-					print("top light")
-					log.write("top light\n")
-					for i in range(random.randint(lowerLimitCars, upperLimitCars)):
-						try:
-							traffic.deadCars.append(traffic.top.pop())
-							carsMoved += 1
-						except:
-							missedCars += 1
-							totalMissedCars += 1
-				case 3:
-					print("bottom light")
-					log.write("bottom light\n")
-					for i in range(random.randint(lowerLimitCars, upperLimitCars)):
-						try:
-							traffic.deadCars.append(traffic.bottom.pop())
-							carsMoved += 1
-						except:
-							missedCars += 1
-							totalMissedCars += 1
+            # Check end condition
+            if hour == game_length and cycle == cycles_per_hour - 1:
+                quit_and_log(traffic, total_missed_cars, hour, cycle, cycles_per_hour)
 
-			print(f"moved cars: {carsMoved}")
-			print(f"missed cars: {missedCars}")
-			log.write(f"moved cars: {carsMoved}\n"
-			          f"missed cars: {missedCars}\n")
+            # Handle quit event
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    quit_and_log(traffic, total_missed_cars, hour, cycle, cycles_per_hour)
 
+            print()
+            time.sleep(1 * game_length_multiplier)
 
-			# increment timeWaiting for all cars in traffic
-			for car in traffic.top:
-				car.timeWaiting += 1
-			for car in traffic.bottom:
-				car.timeWaiting += 1
-			for car in traffic.left:
-				car.timeWaiting += 1
-			for car in traffic.right:
-				car.timeWaiting += 1
-
-			# draw the window
-			draw_window(window, mode, traffic)
-
-			log.write("\n")
-
-			next_state = traffic_controller.get_state(traffic)
-			reward = traffic_controller.calculate_reward(traffic, carsMoved, missedCars)
-			traffic_controller_ac.train(state, mode, reward, next_state)
-			traffic_controller.remember(state, mode, reward, next_state)
-			traffic_controller.train()
-
-			if (hour == gameLength and cycle == cyclesPerHour-1):
-				quitAndLog()
-
-			for event in pygame.event.get():
-				# handles quit event
-				if event.type == pygame.QUIT:
-					quitAndLog()
-
-			print()
-			time.sleep(1 * gameLengthMultiplier)
-
-		log.write("\n")
-		hour += 1
-
-
-
+        log.write("\n")
+        hour += 1
