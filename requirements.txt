@@ -1,0 +1,4 @@
+pygame~=2.6.1
+numpy~=2.0.2
+pandas~=2.2.3
+torch~=2.7.0.dev20250114+cu126
