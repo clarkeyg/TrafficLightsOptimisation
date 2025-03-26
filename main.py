@@ -10,6 +10,7 @@ from TrafficControlAlgorithms import ChaosControl, SimpleControl, BetterControl
 def quit_and_log(traffic, total_missed_cars, hour, cycle, cycles_per_hour):
 	waiting_sum = 0
 	live_count = 0
+	max_wait = 0  # Initialize maximum wait time tracker
 	with open("postReport.txt", "w") as dump_file:
 		dump_file.write("Live Cars:\n")
 		for lane in [traffic.top, traffic.bottom, traffic.left, traffic.right]:
@@ -17,12 +18,17 @@ def quit_and_log(traffic, total_missed_cars, hour, cycle, cycles_per_hour):
 				dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
 				waiting_sum += car.timeWaiting
 				live_count += 1
+				if car.timeWaiting > max_wait:  # Update max_wait if current car's wait time is higher
+					max_wait = car.timeWaiting
 		dump_file.write("\nDead Cars:\n")
 		for car in traffic.deadCars:
 			dump_file.write(f"{car.loc}{car.dest}{car.timeWaiting}{car.colour}\n")
 			waiting_sum += car.timeWaiting
+			if car.timeWaiting > max_wait:  # Update max_wait for dead cars
+				max_wait = car.timeWaiting
 		avg_wait = waiting_sum / (len(traffic.deadCars) + live_count) if (len(traffic.deadCars) + live_count) > 0 else 0
 		dump_file.write(f"Avg waiting time: {avg_wait} cycles\n")
+		dump_file.write(f"Max waiting time: {max_wait} cycles\n")  # Log the maximum wait time
 		dump_file.write(f"Total potential cars wasted: {total_missed_cars}\n")
 		total_cycles = (hour * cycles_per_hour) + cycle + 1  # +1 since cycle is 0-based
 		dump_file.write(f"Avg potential cars wasted: {total_missed_cars / total_cycles if total_cycles > 0 else 0}\n")
@@ -44,15 +50,15 @@ except:
 	quit()
 
 # Configuration
-algorithm = "better control"
+algorithm = "actor critic"
 game_length = 48
 game_length_multiplier = 0
 traffic = Traffic()
 car_multiplier = 3
 hour = 0
-cycles_per_hour = 30
-lower_limit_cars = 15
-upper_limit_cars = 20
+cycles_per_hour = 60
+lower_limit_cars = 6
+upper_limit_cars = 10
 total_missed_cars = 0
 road_numbers = [0, 1, 2, 3]
 probability = [0.2, 0.4, 0.3, 0.1]

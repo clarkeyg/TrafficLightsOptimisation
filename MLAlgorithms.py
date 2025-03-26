@@ -87,6 +87,7 @@ class NeuralTrafficControl(Controller):
         self.update_counter = 0
         self.state = None
         self.action = None
+        self.cycle = 0
 
     def get_state(self, traffic):
         state = []
@@ -163,10 +164,12 @@ class NeuralTrafficControl(Controller):
             self.target_model.load_state_dict(self.model.state_dict())
 
     def update(self, traffic, cars_moved, missed_cars):
-        next_state = self.get_state(traffic)
-        reward = self.calculate_reward(traffic, cars_moved, missed_cars)
-        self.remember(self.state, self.action, reward, next_state)
-        self.train()
+        if self.cycle <= 720: #network stops training after 720 cycles (abt 12 simulated hours)
+            next_state = self.get_state(traffic)
+            reward = self.calculate_reward(traffic, cars_moved, missed_cars)
+            self.remember(self.state, self.action, reward, next_state)
+            self.train()
+        self.cycle += 1
 
 class ActorCriticTrafficControl(Controller):
     def __init__(self):
@@ -177,6 +180,7 @@ class ActorCriticTrafficControl(Controller):
         self.gamma = 0.99
         self.state = None
         self.action = None
+        self.cycle = 0
 
     def get_state(self, traffic):
         state = []
@@ -229,9 +233,11 @@ class ActorCriticTrafficControl(Controller):
         self.actor_optimizer.step()
 
     def update(self, traffic, cars_moved, missed_cars):
-        next_state = self.get_state(traffic)
-        reward = self.calculate_reward(traffic, cars_moved, missed_cars)
-        self.train(self.state, self.action, reward, next_state)
+        if self.cycle <= 720:  # network stops training after 720 cycles (abt 12 simulated hours)
+            next_state = self.get_state(traffic)
+            reward = self.calculate_reward(traffic, cars_moved, missed_cars)
+            self.train(self.state, self.action, reward, next_state)
+        self.cycle += 1
 
 class FixedNNControl(Controller):
     def __init__(self):
