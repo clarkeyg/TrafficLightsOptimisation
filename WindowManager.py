@@ -62,6 +62,6 @@ def draw_cars(window, traffic):
     # Display car counts
     font = pygame.font.SysFont(None, 24)
     window.blit(font.render(f'Left: {len(traffic.left)}', False, WHITE), (50, 275))
-    window.blit(font.render(f'Top: {len(traffic.right)}', False, WHITE), (425, 50))
-    window.blit(font.render(f'Right: {len(traffic.top)}', False, WHITE), (700, 375))
+    window.blit(font.render(f'Top: {len(traffic.top)}', False, WHITE), (425, 50))
+    window.blit(font.render(f'Right: {len(traffic.right)}', False, WHITE), (700, 375))
     window.blit(font.render(f'Bottom: {len(traffic.bottom)}', False, WHITE), (325, 550))

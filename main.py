@@ -50,9 +50,9 @@ except:
 	quit()
 
 # Configuration
-algorithm = "actor critic"
+algorithm = "simple control"
 game_length = 48
-game_length_multiplier = 0
+game_length_multiplier = 0.1
 traffic = Traffic()
 car_multiplier = 3
 hour = 0
